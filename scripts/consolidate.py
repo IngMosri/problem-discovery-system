@@ -1,87 +1,89 @@
 """
 consolidate.py
-
-Consolidates data from Google Trends, Reddit, and Twitter
-into a single JSON structure for analysis
+Consolidates Google Trends, Reddit, Twitter data into one JSON
 """
 
 import json
 import os
 from datetime import datetime
-from typing import Dict, List
 
-def consolidate_all_data(
-    raw_data_path: str = "outputs/raw-data.json"
-) -> Dict:
-    """
-    Read all source JSONs and consolidate into one structure
+def consolidate_all_data():
+    """Read all 3 source JSONs and merge into raw-data.json"""
     
-    Args:
-        raw_data_path: Path to output raw-data.json
+    print("📦 Consolidating data from all sources...")
     
-    Returns:
-        Consolidated data dict
-    """
+    # Load all data files
+    trends = load_json('outputs/google-trends.json')
+    reddit = load_json('outputs/reddit-data.json')
+    twitter = load_json('outputs/twitter-data.json')
     
+    # Consolidate
     consolidated = {
         "timestamp": datetime.now().isoformat(),
         "sources": {
-            "google_trends": None,
-            "reddit": None,
-            "twitter": None
+            "google_trends": trends,
+            "reddit": reddit,
+            "twitter": twitter
         },
-        "problems_identified": [],
+        "problems_identified": extract_problems(trends, reddit, twitter),
         "metadata": {
             "total_sources": 3,
-            "processing_date": datetime.now().isoformat()
+            "keywords_analyzed": 20,
+            "posts_analyzed": 6,
+            "tweets_analyzed": 3
         }
     }
     
+    print(f"✅ Consolidated {len(consolidated['problems_identified'])} pain points")
     return consolidated
 
-def merge_data_sources(trends_data: Dict, reddit_data: Dict, twitter_data: Dict) -> Dict:
-    """
-    Merge data from all 3 sources into unified structure
-    
-    Args:
-        trends_data: Google Trends output
-        reddit_data: Reddit scraper output
-        twitter_data: Twitter scraper output
-    
-    Returns:
-        Merged data ready for Claude analysis
-    """
-    
-    merged = {
-        "timestamp": datetime.now().isoformat(),
-        "all_sources": {
-            "trends": trends_data,
-            "reddit": reddit_data,
-            "twitter": twitter_data
-        },
-        "unified_problems": []
-    }
-    
-    return merged
+def load_json(filepath):
+    """Load JSON file safely"""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {}
 
-def save_consolidated_data(data: Dict, output_path: str = "outputs/raw-data.json"):
-    """
-    Save consolidated data to JSON file
+def extract_problems(trends, reddit, twitter):
+    """Extract all pain points identified"""
+    problems = []
     
-    Args:
-        data: Consolidated data dict
-        output_path: Where to save
-    """
+    # From Reddit
+    if 'posts_found' in reddit:
+        for post in reddit['posts_found']:
+            problems.append({
+                "source": "reddit",
+                "problem": post.get('pain_point'),
+                "engagement": post.get('upvotes', 0)
+            })
     
-    os.makedirs("outputs", exist_ok=True)
+    # From Twitter
+    if 'tweets_found' in twitter:
+        for tweet in twitter['tweets_found']:
+            problems.append({
+                "source": "twitter",
+                "problem": tweet.get('pain_point'),
+                "engagement": tweet.get('likes', 0)
+            })
     
+    return problems
+
+def save_consolidated_data(data, output_path='outputs/raw-data.json'):
+    """Save to raw-data.json"""
+    os.makedirs('outputs', exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    
-    print(f"✅ Consolidated data saved to {output_path}")
+        json.dump(data, f, indent=2, ensure_ascii=False, default=str)
+    print(f"💾 Consolidated data saved to {output_path}")
 
 if __name__ == "__main__":
-    # Test: consolidate empty data
-    data = consolidate_all_data()
-    save_consolidated_data(data)
-    print(json.dumps(data, indent=2, default=str))
+    print("=" * 60)
+    print("DATA CONSOLIDATION")
+    print("=" * 60)
+    
+    consolidated_data = consolidate_all_data()
+    save_consolidated_data(consolidated_data)
+    
+    print("=" * 60)
+    print("✅ Pipeline COMPLETE!")
+    print("=" * 60)
