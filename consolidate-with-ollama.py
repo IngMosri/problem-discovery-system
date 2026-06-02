@@ -26,13 +26,15 @@ def call_ollama(prompt):
     print(f"🤖 Procesando con {OLLAMA_MODEL}...")
     try:
         result = subprocess.run(
-            ["ollama", "run", OLLAMA_MODEL],
+            ["ollama", "run", "--nowordwrap", OLLAMA_MODEL],
             input=prompt,
             capture_output=True,
             text=True,
             timeout=300
         )
-        return result.stdout.strip()
+        import re
+        clean = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', result.stdout)
+        return clean.strip()
     except subprocess.TimeoutExpired:
         print("⏱️ Timeout")
         return None
